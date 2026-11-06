@@ -21,6 +21,7 @@ import { displayServer } from './panels.mjs'
 import { uiServer } from './ui.mjs'
 import { chromeAvailable, chromeServer } from './chrome.mjs'
 import { visionServer } from './vision.mjs'
+import { bundledServers } from './tools.mjs'
 import { homedir, tmpdir } from 'node:os'
 import { readFileSync, realpathSync } from 'node:fs'
 import { readFile, realpath, stat } from 'node:fs/promises'
@@ -92,11 +93,13 @@ function originAllowed(origin) {
  * Voice is a bad interface for a confirmation dialog: there is no window to
  * click and the model can't pause for one. So the bridge decides.
  *
- * Read-only and generative tools run freely. Anything that writes to disk,
- * runs a shell, or changes the world waits for JARVIS_ALLOW_WRITES=1. Start
- * without it, and turn it on once you trust what you're demoing.
+ * Actions are ON by default in this copy: JARVIS can run a shell, write files,
+ * and click and type in the browser. JARVIS_ALLOW_WRITES=0 (or
+ * `npm run bridge:readonly`, `npm start -- --read-only`) puts him back in
+ * read-only mode, where anything that changes the world is refused.
  */
-const ALLOW_WRITES = process.env.JARVIS_ALLOW_WRITES === '1'
+const ALLOW_WRITES =
+  process.env.JARVIS_ALLOW_WRITES !== '0' && !process.argv.includes('--read-only')
 
 /**
  * The orchestrator model. Override with JARVIS_MODEL to trade quality for pace
@@ -173,7 +176,9 @@ function configuredServers() {
   }
 }
 
-const MCP_SERVERS = configuredServers()
+// The bundled set goes first so a server of the same name in ~/.claude.json
+// replaces it rather than the other way round.
+const MCP_SERVERS = { ...bundledServers(), ...configuredServers() }
 
 /** MCP tools arrive as `mcp__<server>__<tool>`. */
 const mcpServerOf = (toolName) =>
@@ -426,8 +431,15 @@ Your eyes:
 - Describe a watch as a sequence — what changed between the frames — not as a
   list of pictures. They know what their own hands look like.
 
+Your memory:
+- The \`memory\` tools are a notebook that outlives this conversation. When they
+  tell you something worth keeping — their name, a preference, a person, a
+  project — store it without remarking on it. When a question might touch what
+  you already know about them, search it first.
+
 Using tools:
 - You have real tools on this machine. Use them rather than guessing.
+- For a fact from the web, WebSearch, then WebFetch to read the page.
 - Never narrate that you're about to use one. No "Let me search for that" or
   "I'll check that now" — go silent, use it, then answer. The user sees a
   spinner; they don't need commentary.
@@ -1007,8 +1019,11 @@ console.log(
 console.log(`[jarvis] model ${MODEL} · effort ${EFFORT}`)
 console.log(
   `[jarvis] writes ${ALLOW_WRITES ? 'ENABLED' : 'disabled'}` +
-    (ALLOW_WRITES ? '' : ' — set JARVIS_ALLOW_WRITES=1 to permit shell/file/device actions'),
+    (ALLOW_WRITES
+      ? ' — JARVIS can act (shell, files, browser). JARVIS_ALLOW_WRITES=0 for read-only'
+      : ' — read-only; unset JARVIS_ALLOW_WRITES to permit shell/file/device actions'),
 )
+console.log(`[jarvis] tools ${Object.keys(MCP_SERVERS).join(', ') || 'none'} + web search`)
 // Asynchronous, so it lands a beat after the rest of the banner. Worth printing
 // at all because an extension that is simply not running is indistinguishable
 // at the tool boundary from one that is broken, and this is the one place the
@@ -1016,7 +1031,7 @@ console.log(
 void chromeAvailable().then((ok) => {
   console.log(
     ok
-      ? `[jarvis] browser control ready${ALLOW_WRITES ? '' : ' (reading only — clicking and typing need JARVIS_ALLOW_WRITES=1)'}`
+      ? `[jarvis] browser control ready${ALLOW_WRITES ? '' : ' (reading only — read-only mode is on)'}`
       : '[jarvis] browser control unavailable — open Chrome with the Claude extension enabled',
   )
 })

@@ -160,6 +160,22 @@ A few things you can say:
 - *"Take a screenshot of my phone."*
 - *"Open my GitHub notifications."*
 
+### Tools that ship with JARVIS
+
+So a fresh clone can do more than talk, the bridge also brings its own
+(`bridge/tools.mjs`), no setup needed beyond Node:
+
+- **Web search and page reading** — Claude Code's built-in WebSearch and
+  WebFetch, on your Claude login. No key.
+- **Memory** — remembers people, preferences and projects across restarts, in
+  `~/.jarvis/memory.json`.
+- **A browser of his own** — Playwright, used only when the Claude extension in
+  your Chrome isn't reachable. Its profile lives in `~/.jarvis/browser-profile`.
+- **Exa search** — added automatically when `EXA_API_KEY` is set.
+
+A server with the same name in `~/.claude.json` replaces the bundled one, and
+`JARVIS_BUNDLED_TOOLS=0` turns the set off.
+
 > **Note on account connectors.** Servers you added through your **claude.ai
 > account** are not stored on disk, so the bridge cannot see them — it works from
 > the servers in `~/.claude.json` (about 14), not the claude.ai ones.
@@ -227,7 +243,9 @@ Everything is optional in bridge mode. Frontend settings live in `.env.local`
 | `JARVIS_BRIDGE_PORT` | `8787` | Port for the WebSocket + HTTP endpoints |
 | `JARVIS_MODEL` | `claude-opus-5` | Model to run |
 | `JARVIS_EFFORT` | `medium` | Reasoning effort |
-| `JARVIS_ALLOW_WRITES` | off | `1` allows effectful tools (see below) |
+| `JARVIS_ALLOW_WRITES` | on | `0` makes JARVIS read-only (see below) |
+| `JARVIS_BUNDLED_TOOLS` | on | `0` turns off the tools that ship with JARVIS |
+| `EXA_API_KEY` | — | Optional; adds Exa search to the bundled tools |
 | `JARVIS_ALLOWED_ORIGINS` | local dev | Extra WebSocket origins to accept |
 | `JARVIS_ALLOW_NO_ORIGIN` | off | Accept connections with no `Origin` header |
 | `JARVIS_FILE_ROOTS` | — | Roots the `/file` endpoint may serve from |
@@ -258,24 +276,25 @@ the next boot, and both the voice and transcription upgrade automatically.
 
 ---
 
-## Enabling actions
+## Actions, and read-only mode
 
-The tool gate starts **read-only**. Search, generation and lookups run freely;
-anything effectful — send, tap, delete, install, pay — is denied. Voice is a poor
+In this copy JARVIS **can act by default**: run shell commands, write files, and
+click and type in your browser. Voice is a poor
 interface for a confirmation dialog, so the decision is made ahead of time in
 `decideTool()` in `bridge/server.mjs`, not at the moment of use. The bridge sets
 `settingSources: []`, which makes its own gate the only authority — filesystem
 settings and any global `bypassPermissions` cannot override it.
 
-To allow effectful tools (phone, browser driving, sending), run the bridge this
-way instead:
+To put him in **read-only** mode — search, generation and lookups still run;
+anything effectful (send, tap, delete, install, pay, shell, file writes) is
+refused — start him like this instead:
 
 ```bash
-npm run bridge:writes
+npm start -- --read-only     # or: npm run bridge:readonly
 ```
 
-> Read `decideTool()` before you do. *"Hey Jarvis, clean up my downloads folder"*
-> means something rather different with writes enabled.
+> *"Hey Jarvis, clean up my downloads folder"* will actually do it. Read
+> `decideTool()` to see exactly what he is allowed to touch.
 
 ---
 

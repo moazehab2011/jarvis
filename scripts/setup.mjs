@@ -110,7 +110,7 @@ console.log('  1)  npm run bridge      # the brain (Claude Code, headless)');
 console.log('  2)  npm run dev         # the face (open http://localhost:5173 in Chrome)');
 console.log('');
 console.log('Then click INITIALISE and say "Hey Jarvis".');
-console.log('To let JARVIS take real actions (phone, browser, sending), run `npm run bridge:writes` instead of `npm run bridge`.');
+console.log('JARVIS can take real actions (shell, files, browser) by default. For look-but-don\'t-touch, run `npm run bridge:readonly` (or `npm start -- --read-only`).');
 console.log('');
 
 process.exit(0);
